@@ -99,7 +99,7 @@ def generate_hw01(question):
     message = {"question": question}
     response = chain.invoke(message) #.to_messages()
 
-    return str(response.dict())
+    return json.dumps(response.dict())
     
 def generate_hw02(question):
     pass
@@ -129,4 +129,8 @@ def demo(question):
     return response
 # print(demo("2024年台灣10月紀念日有哪些?"))
 
-print(generate_hw01("2024年台灣10月紀念日有哪些?"))
+# answer = generate_hw01("2024年台灣10月紀念日有哪些?")
+# print(str(answer))
+# parsed_data = json.loads(answer)
+# print(json.loads(answer))
+# print(json.loads(str(answer)))
