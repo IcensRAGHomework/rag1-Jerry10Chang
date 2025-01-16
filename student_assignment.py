@@ -99,7 +99,7 @@ def generate_hw01(question):
     message = {"question": question}
     response = chain.invoke(message) #.to_messages()
 
-    return response.dict()
+    return str(response.dict())
     
 def generate_hw02(question):
     pass
