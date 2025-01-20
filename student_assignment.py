@@ -16,26 +16,24 @@ from typing import Union, Optional
 from typing_extensions import Annotated, TypedDict
 from pydantic import BaseModel, Field
 
+import requests
     
 class Holidy(BaseModel):
     date: str =  Field(description="The date of the holiday")
     name: str = Field(description="The name of the holiday")
 
-class Resule_Holidy(BaseModel):
-    Result: list[Holidy]# = Field(description="The result of the holiday")
-    
+class Result_Holidy(BaseModel):
+    Result: list[Holidy] = Field(description="The result of the holiday")
 
-class Joke(BaseModel):
-    """Joke to tell user."""
+class YearsCountryMonth(BaseModel):
+    year: int = Field(description="The year of the holiday")
+    country: str = Field(description="The country of the holiday")
+    month: int = Field(description="The month of the holiday")
 
-    setup: str = Field(description="The setup of the joke")
-    punchline: str = Field(description="The punchline to the joke")
-    rating: Optional[int] = Field(
-        default=None, description="How funny the joke is, from 1 to 10"
-    )
+class Result_YearsCountryMonth(BaseModel):
+    Result: list[YearsCountryMonth] = Field(description="The result of the message")
 
-
-def generate_hw01(question):
+def llm_config():
     llm = AzureChatOpenAI(
             model=gpt_config['model_name'],
             deployment_name=gpt_config['deployment_name'],
@@ -44,57 +42,19 @@ def generate_hw01(question):
             azure_endpoint=gpt_config['api_base'],
             temperature=gpt_config['temperature']
     )
-    '''
-    examples = [
-        {
-            "human": "{question}",
-            "Result":[
-                {
-                    "date": "2024-1-1",
-                    "name": "元旦"
-                },
-                {
-                    "date": "2024-2-28",
-                    "name": "和平紀念日"
-                }
-            ]
-        }
-    ]
+    return llm
 
-    example_prompt = ChatPromptTemplate.from_messages(
-        [
-            ("human", "{question}")
-        ]
-    )
+def generate_hw01(question):
+    llm = llm_config()
 
-    few_shot_prompt = FewShotChatMessagePromptTemplate(
-        example_prompt=example_prompt,
-        examples=examples,
-    )
-
-    final_prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", "你是行事曆"),
-            few_shot_prompt,
-        ]
-    )
-    '''
-
-    system = """你是行事曆"""
-    # Here are some examples of holidays:
-    # example_user: "2024年台灣1月紀念日有哪些?"
-    # example_system: {"Result":[{"date":"2024-1-1","name":"元旦"}}
-    # example_user: "2024年台灣2月紀念日有哪些?"
-    # example_system: {"Result":[{"date":"2024-2-28","name":"和平紀念日"}]}
-    # """
-
+    system = """你是一個行事曆"""
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system),
             ("human", "{question}")
         ]
     )
-    structured_llm = llm.with_structured_output(Resule_Holidy)
+    structured_llm = llm.with_structured_output(Result_Holidy)
     chain = prompt | structured_llm
     message = {"question": question}
     response = chain.invoke(message) #.to_messages()
@@ -102,8 +62,39 @@ def generate_hw01(question):
     return json.dumps(response.dict())
     
 def generate_hw02(question):
-    pass
+    llm = llm_config()
+
+    # Get the year, country, month from the question
+    API_KEY = "CuVn6mmYwNFutCyLkRPepSSyk1szOeyQ"
+    API_Base_URL = "https://calendarific.com/api/v2"
+    API_Endpoints = "/holidays"
     
+    system = """你是一個行事曆，請根據問題回答出指定的年份、國家、月份，其中國家請用iso-3166 format回答"""
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system),
+            ("human", "{question}")
+        ]
+    )
+    structured_llm = llm.with_structured_output(Result_YearsCountryMonth)
+    chain = prompt | structured_llm
+    message = {"question": question}
+    response = chain.invoke(message)
+    response_year = response.dict()['Result'][0]['year']
+    response_country = response.dict()['Result'][0]['country']
+    response_month = response.dict()['Result'][0]['month']
+    print(response_year, response_country, response_month)
+    # Get the holidays from the API
+    API_URL = f"{API_Base_URL}{API_Endpoints}?api_key={API_KEY}&country={response_country}&year={response_year}&month={response_month}"
+    API_reponse = requests.get(API_URL).json()
+    
+    final_json_response = {}
+    tmp_array = []
+    for holiday in API_reponse['response']['holidays']:
+        tmp_array.append({"date": holiday['date']['iso'], "name": holiday['name']})
+    final_json_response['Result'] = tmp_array
+    return json.dumps(final_json_response)
+
 def generate_hw03(question2, question3):
     pass
     
@@ -129,8 +120,10 @@ def demo(question):
     return response
 # print(demo("2024年台灣10月紀念日有哪些?"))
 
+# HW1
 # answer = generate_hw01("2024年台灣10月紀念日有哪些?")
-# print(str(answer))
-# parsed_data = json.loads(answer)
 # print(json.loads(answer))
-# print(json.loads(str(answer)))
+
+# HW2
+answer = generate_hw02("2024年台灣10月紀念日有哪些?")
+print(answer)
