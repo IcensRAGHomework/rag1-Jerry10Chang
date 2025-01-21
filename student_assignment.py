@@ -40,12 +40,12 @@ class YearsCountryMonth(BaseModel):
 class Result_YearsCountryMonth(BaseModel):
     Result: list[YearsCountryMonth] = Field(description="The result of the message")
 
-class YesNoReason(TypedDict):
-    add: str = Field(description="true or false")
-    reason: str = Field(description="The reason of the answer, and show the holidays in the existing list")
+class YesNoReason(BaseModel):
+    add: str # = Field(description="true or false")
+    reason: str # = Field(description="The reason of the answer, and show the holidays in the existing list")
 
-class Result_AddReason(TypedDict):
-    Result: list[YesNoReason] = Field(description="The result of the message")
+class Result_AddReason(BaseModel):
+    Result: YesNoReason # = Field(description="The result of the message")
 
 def llm_config():
     llm = AzureChatOpenAI(
@@ -157,7 +157,7 @@ def generate_hw03(question2, question3):
     system = "你是一個中文行事曆，請依照格式回答問題。add : 這是一個布林值，表示是否需要將節日新增到節日清單中。根據問題判斷該節日是否存在於清單中，如果不存在，則為 true；否則為 false。reason : 描述為什麼需要或不需要新增節日，具體說明是否該節日已經存在於清單中，以及當前清單的內容。"
     message_hw3 = {"question": question3, "system": system, "holidays": holidays}
     response_hw3 = agent_with_chat_history.invoke(message_hw3, config={"configurable": {"session_id": "foo"}})
-    return json.dumps(response_hw3)
+    return json.dumps(response_hw3.dict())
 
 
 def generate_hw04(question):
