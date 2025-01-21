@@ -4,7 +4,7 @@ import traceback
 from model_configurations import get_model_configuration
 
 from langchain_openai import AzureChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 
@@ -24,6 +24,9 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.messages import BaseMessage, AIMessage
 from typing import List
+
+import base64
+from mimetypes import guess_type
 
 class Holidy(BaseModel):
     date: str =  Field(description="The date of the holiday")
@@ -46,6 +49,12 @@ class YesNoReason(BaseModel):
 
 class Result_AddReason(BaseModel):
     Result: YesNoReason # = Field(description="The result of the message")
+
+class Score(BaseModel):
+    score: int
+
+class Result_Score(BaseModel):
+    Result: Score
 
 def llm_config():
     llm = AzureChatOpenAI(
@@ -80,6 +89,21 @@ def get_by_session_id(session_id: str) -> BaseChatMessageHistory:
     if session_id not in store:
         store[session_id] = InMemoryHistory()
     return store[session_id]
+
+
+# Function to encode a local image into data URL 
+def local_image_to_data_url(image_path):
+    # Guess the MIME type of the image based on the file extension
+    mime_type, _ = guess_type(image_path)
+    if mime_type is None:
+        mime_type = 'application/octet-stream'  # Default MIME type if none is found
+
+    # Read and encode the image file
+    with open(image_path, "rb") as image_file:
+        base64_encoded_data = base64.b64encode(image_file.read()).decode('utf-8')
+
+    # Construct the data URL
+    return f"data:{mime_type};base64,{base64_encoded_data}"
 
 def generate_hw01(question):
     llm = llm_config()
@@ -157,16 +181,27 @@ def generate_hw03(question2, question3):
     system = "你是一個中文行事曆，請依照格式回答問題。add : 這是一個布林值，表示是否需要將節日新增到節日清單中。根據問題判斷該節日是否存在於清單中，如果不存在，則為 true；否則為 false。reason : 描述為什麼需要或不需要新增節日，具體說明是否該節日已經存在於清單中，以及當前清單的內容。"
     message_hw3 = {"question": question3, "system": system, "holidays": holidays}
     response_hw3 = agent_with_chat_history.invoke(message_hw3, config={"configurable": {"session_id": "foo"}})
-    final_response = response_hw3.dict()
-    print('-----------')
-    print(final_response['Result']['add'])
-    print(type(final_response['Result']['add']))
-    print('-----------')
     return json.dumps(response_hw3.dict())
 
 
 def generate_hw04(question):
-    pass
+    import base64
+    llm = llm_config()
+
+    structured_llm = llm.with_structured_output(Result_Score)
+    data_url = local_image_to_data_url("baseball.png")
+
+    message = [HumanMessage(
+                   content=[
+                       {"type": "image_url", "image_url": {"url": data_url}},
+                       {"type": "text", "text": question},
+                    ],
+                )]
+    
+    chain = structured_llm
+    response = chain.invoke(message)
+    return json.dumps(response.dict())
+    
     
 def demo(question):
     llm = AzureChatOpenAI(
@@ -192,5 +227,5 @@ def demo(question):
 # print(json.loads(answer))
 
 # HW2
-answer = generate_hw03("2024年台灣10月紀念日有哪些?", '根據先前的節日清單，這個節日{"date": "10-31", "name": "蔣公誕辰紀念日"}是否有在該月份清單？')
+answer = generate_hw04("請問中華台北的積分是多少")
 print(json.loads(answer))
