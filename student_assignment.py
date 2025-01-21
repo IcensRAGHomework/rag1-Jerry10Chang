@@ -68,11 +68,6 @@ def llm_config():
     return llm
 
 store = {}
-def get_session_history(session_id: str) -> BaseChatMessageHistory:
-    if session_id not in store:
-        store[session_id] = ChatMessageHistory()
-    return store[session_id]
-
 class InMemoryHistory(BaseChatMessageHistory, BaseModel):
     """In memory implementation of chat message history."""
 
@@ -183,9 +178,7 @@ def generate_hw03(question2, question3):
     response_hw3 = agent_with_chat_history.invoke(message_hw3, config={"configurable": {"session_id": "foo"}})
     return json.dumps(response_hw3.dict())
 
-
 def generate_hw04(question):
-    import base64
     llm = llm_config()
 
     structured_llm = llm.with_structured_output(Result_Score)
@@ -201,7 +194,6 @@ def generate_hw04(question):
     chain = structured_llm
     response = chain.invoke(message)
     return json.dumps(response.dict())
-    
     
 def demo(question):
     llm = AzureChatOpenAI(
@@ -220,12 +212,3 @@ def demo(question):
     response = llm.invoke([message])
     
     return response
-# print(demo("2024年台灣10月紀念日有哪些?"))
-
-# HW1
-# answer = generate_hw01("2024年台灣10月紀念日有哪些?")
-# print(json.loads(answer))
-
-# HW2
-answer = generate_hw04("請問中華台北的積分是多少")
-print(json.loads(answer))
